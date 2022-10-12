@@ -17,6 +17,7 @@ async def get_email(P_LSHET: str):
     INFO=email(P_LSHET)
     if len(INFO)==0:
         return "По данному лицевому счету запись об электронной почте отсутствует"
+    return INFO
 
 @app.get("/ABONENTS-CITIZENS_BENEFITS/")
 async def get_CITIZENS(P_LSHET: str):

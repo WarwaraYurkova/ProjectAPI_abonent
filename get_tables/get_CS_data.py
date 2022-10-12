@@ -1,6 +1,5 @@
 from CSconnect import engine
 import pandas as pd
-import numpy as np
 import sqlalchemy
 from address import address
 
@@ -22,8 +21,8 @@ def general_info_abonent_telephones(P_LSHET):
         return "Такого лицевого счета не существует"
 
     df_general_info["abonentFIO"] = (
-            df_general_info["fio"].apply(str) + ' ' + df_general_info["name"].apply(str) + ' ' + df_general_info[
-        "second_name"].apply(str))
+            df_general_info["fio"].apply(str) + ' ' + df_general_info["name"].apply(str) + ' '
+            + df_general_info["second_name"].apply(str))
     numeric_info = ["pclogin", "documentcd"]
     dates_info = ["startdate"]
 
@@ -65,14 +64,15 @@ def general_info_abonent_telephones(P_LSHET):
 def email(P_LSHET):
     # Электронная почта
     table_mail = pd.read_sql(
-        f"select lshet, emailtypeid, email, commdate, ownertypeid, sourceid from abonentsmail where lshet='{P_LSHET}'",
+        "select abonents.lshet, am.emailtypeid, am.email, am.commdate, am.ownertypeid, am.sourceid "
+        "from abonentsmail am "
+        f"join abonents on abonents.lshet=am.lshet where abonents.lshet='{P_LSHET}'",
         engine)
     df_mail = pd.DataFrame(table_mail)
-    df_mail["commdate"] = df_mail["commdate"].apply(
-        lambda x: x.date() if not np.isnat(x) else "")
-    columns_mail = ["emailtypeid", "email", "commdate", "ownertypeid", "sourceid"]
-    df_mail[columns_mail] = (df_mail[columns_mail]).apply(
-        lambda x: x.date() if not pd.isnull(x) else "")
+    df_mail["commdate"] = df_mail["commdate"].apply(lambda x: x.date())
+    # columns_mail = ["emailtypeid", "email", "commdate", "ownertypeid", "sourceid"]
+    # df_mail[columns_mail] = (df_mail[columns_mail]).apply(
+    # lambda x: x.date() if not pd.isnull(x) else "")
     df_mail = df_mail.to_dict('records')
     return df_mail
 
@@ -81,8 +81,8 @@ def citizens_and_benefits(P_LSHET):
     # Граждане и льготы
     df_citizen = sqlalchemy.text("select abonents.lshet,cityzens.cityzen_id, cityzens.ctzfio,cityzens.ctzname, "
                                  "cityzens.ctzparentname from cityzens "
-                                 "LEFT join abonents on abonents.lshet=cityzens.lshet where abonents.lshet=:PLSHET")
-    df_citizens_benefits = (engine.execute(df_citizen, PLSHET=P_LSHET)).all()
+                                 f"LEFT join abonents on abonents.lshet=cityzens.lshet where abonents.lshet=:{P_LSHET}")
+    df_citizens_benefits = (engine.execute(df_citizen)).all()
     df_citizens_benefits = pd.DataFrame(df_citizens_benefits)
     if df_citizens_benefits.empty:
         return "Записи о введенном ЛС не существует"
@@ -112,34 +112,36 @@ def citizens_and_benefits(P_LSHET):
 
 
 def consumption(P_LSHET):
-    #####       Потребление     #####
+    # Потребление
     table_consumption = sqlalchemy.text(
         "select  Lcharsabonentlist.lshet, lcharslist.name, logicvalues.logicsignificance "
         "from lcharsabonentlist "
         "left join lcharslist on lcharslist.kod=lcharsabonentlist.kodlcharslist "
-        "left join logicvalues on logicvalues.significance=lcharsabonentlist.significance and logicvalues.kod=lcharsabonentlist.kodlcharslist "
-        f"where lcharslist.kod in (53,52,68,69,70,1,37,30,44,21,12) and Lcharsabonentlist.lshet={P_LSHET}")
-    df_consumption = (engine.execute(table_consumption, PLSHET=P_LSHET)).all()
+        "left join logicvalues on logicvalues.significance=lcharsabonentlist.significance "
+        "and logicvalues.kod=lcharsabonentlist.kodlcharslist "
+        f"where lcharslist.kod in (53,52,68,69,70,99,1,37,30,44,21,12,53) and Lcharsabonentlist.lshet=:{P_LSHET}")
+    df_consumption = (engine.execute(table_consumption)).all()
     df_consumption = pd.DataFrame(df_consumption)
     if df_consumption.empty:
-        return "По данному лицевому счету запись об исках отсутствует"
+        return "По данному лицевому счету запись по потреблению отсутствует"
     df_consumption = df_consumption.to_dict('records')
     return (df_consumption)
 
 
 def lawsuits_claims(P_LSHET):  # посмотреть запрос
-    ##############            Иски, претензии           ##########################
+    # Иски, претензии
     df_info_lawsuits = sqlalchemy.text(
         "select abonents.lshet,lawsuits.suitstatusdate, documenttypes.doctypename,documents.inputdate,"
-        "documents.outputdate, documents.documentcd, lawsuitsstatushistory.suitstatusdate,avaliablesuitstates.suitstatusname "
+        "documents.outputdate, documents.documentcd, "
+        "lawsuitsstatushistory.suitstatusdate,avaliablesuitstates.suitstatusname "
         "from documents "
         "left join abonents on abonents.adddocumentcd=documents.documentcd "
         "join lawsuits on lawsuits.suitstatusdocumentcd=documents.documentcd "
         "join documenttypes on documents.doctypeid=documenttypes.doctypeid "
         "join lawsuitsstatushistory on lawsuitsstatushistory.suitstatusdocumentcd= documents.documentcd "
         "join avaliablesuitstates on avaliablesuitstates.suitstatuscd=lawsuits.suitstatuscd where "
-        "abonents.lshet=:PLSHET")
-    df_info_p = (engine.execute(df_info_lawsuits, PLSHET=P_LSHET)).all()
+        f"abonents.lshet=:{P_LSHET}")
+    df_info_p = (engine.execute(df_info_lawsuits)).all()
     df_info_p = pd.DataFrame(df_info_p)
     if df_info_p.empty:
         return "По данному лицевому счету запись об исках отсутствует"
@@ -158,7 +160,7 @@ def house_characteristics(P_LSHET):
         "from ccharsabonentlist "
         "join abonents on abonents.lshet=ccharsabonentlist.lshet "
         "left join ccharslist on ccharslist.kod = ccharsabonentlist.kodccharslist where ccharslist.kod in (1, 2, 3, "
-        "11, 12, 13, 23, 22, 26) and abonents.lshet=:PLSHET")
+        f"11, 12, 13, 23, 22, 26) and abonents.lshet=:{P_LSHET}")
     df_characters = (engine.execute(df_characters, PLSHET=P_LSHET)).all()
     df_characters = pd.DataFrame(df_characters)
     if df_characters.empty:
@@ -172,14 +174,15 @@ def house_characteristics(P_LSHET):
 
 
 def additional_house_ch(P_LSHET):
-    ##############################   Дополнительные сведения о доме    ###################################
+    # Дополнительные сведения о доме
     df_additional_ch = sqlalchemy.text(
         "select abonents.lshet, ccharslist.name, ccharshouselist.significance, ccharshouselist.housecchardate "
         "from ccharshouselist "
         "inner join ccharslist on ccharslist.kod = ccharshouselist.kod "
         "left join houses on houses.housecd=ccharshouselist.housecd "
-        "left join abonents on abonents.housecd=houses.housecd where ccharslist.kod in (32011, 32012, 31003, 206004) and abonents.lshet=:PLSHET")
-    df_additional_ch = (engine.execute(df_additional_ch, PLSHET=P_LSHET)).all()
+        "left join abonents on abonents.housecd=houses.housecd "
+        f"where ccharslist.kod in (32011, 32012, 31003, 206004) and abonents.lshet=:{P_LSHET}")
+    df_additional_ch = (engine.execute(df_additional_ch)).all()
     df_additional_ch = pd.DataFrame(df_additional_ch)
     if df_additional_ch.empty:
         return "По данному лицевому счету запись о дополнительных характеристиках отсутствует"
@@ -193,11 +196,15 @@ def additional_house_ch(P_LSHET):
 
 def consumption_parameters(P_LSHET):
     cons_param_table = sqlalchemy.text(
-        "select houses.housecd, lcharslist.name, logicvalues.logicsignificance,lcharshouselist.houselchardate "
+        "select abonents.lshet, houses.housecd, lcharslist.name, "
+        "logicvalues.logicsignificance,lcharshouselist.houselchardate "
         "from lcharshouselist "
         "left join houses on houses.housecd=lcharshouselist.housecd "
         "left join abonents on abonents.housecd=houses.housecd "
         "left join lcharslist on lcharslist.kod=lcharshouselist.lcharshouselistid "
         "left join logicvalues on logicvalues.significance=lcharshouselist.significance and "
         "logicvalues.kod=lcharshouselist.lcharshouselistid "
-        "where lcharslist.kod in (1,37,99,10009,12,21,44,32,62990,22,30,127,126,68,69,70)")
+        f"where lcharslist.kod in (1,37,99,10009,12,21,44,32,62990,22,30,127,126,68,69,70) and abonents.lshet=:{P_LSHET}")
+    df_cons_param = (engine.execute(cons_param_table)).all()
+    df_cons_param = pd.DataFrame(df_cons_param)
+
