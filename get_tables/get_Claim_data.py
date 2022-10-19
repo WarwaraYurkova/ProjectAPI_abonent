@@ -1,4 +1,4 @@
-from CSconnect import engin_MS
+from CSconnect import engine_MS
 import pandas as pd
 
 
@@ -33,7 +33,7 @@ def nofications(P_LSHET):
                                     "inner join LawCases on LawCases.LawCaseGuid = LawNotices.LawCaseGuid where "
                                     " LawNoticeStatusId is not null and "
                                     f"LawCases.Account='{P_LSHET}') as nofications_tbl where NoticeParamName is not null",
-                                    engin_MS)
+                                    engine_MS)
     df_nofications = pd.DataFrame(table_nofications)
     df_nofications["RequestDateTime"] = (df_nofications["RequestDateTime"]).apply(
         lambda x: x.date() if not pd.isnull(x) else "")
@@ -52,7 +52,7 @@ def stages_work(P_LSHET):
         "inner join LawCases on LawCases.LawCaseGuid = LawNotices.LawCaseGuid "
         "inner join LawStages on LawCases.LawStageId = LawStages.Id "
         f"inner join LawAlgorithms on LawAlgorithms.OrganizationId = LawStages.OrganizationId where LawCases.Account='{P_LSHET}'",
-        engin_MS)
+        engine_MS)
     df_stages_work = pd.DataFrame(table_stages_work)
     if df_stages_work.empty:
         return "Такого лицевого счета не существует"
@@ -74,7 +74,7 @@ def claim_work(P_LSHET):
                                    "inner join LawCourts on LawCourts.LawCourtId = LawSuits.LawCourtId "
                                    "inner join LawSuitStatuses on LawSuitStatuses.ExtCode  = "
                                    f"LawSuits.LawSuitStatusId where LawCases.Account='{P_LSHET}'",
-                                   engin_MS)
+                                   engine_MS)
     df_claim_work = pd.DataFrame(table_claim_work)
     if df_claim_work.empty:
         return "Такого лицевого счета не существует"

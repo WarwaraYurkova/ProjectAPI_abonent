@@ -16,7 +16,8 @@ def address(P_LSHET):
     houses = sqlalchemy.text(
         f"select * from houses where housecd in (select housecd from abonents where lshet={P_LSHET})")
     street = sqlalchemy.text(
-        f"select * from street where streetcd in (select streetcd from houses where housecd in (select housecd from abonents where lshet={P_LSHET}))")
+        f"select * from street where streetcd in (select streetcd from houses where housecd "
+        f"in (select housecd from abonents where lshet={P_LSHET}))")
     punkt = sqlalchemy.text("select * from punkt")
     district = sqlalchemy.text("select * from district")
     regiondistricts = sqlalchemy.text("select * from regiondistricts")
@@ -50,7 +51,7 @@ def address(P_LSHET):
     a = a.join(street[['streetnm']], on=['punktcd', 'streetcd'])
     a = a.join(punkt[['regiondistrictcd', 'settlementid', 'punktnm']], on='punktcd')
     normalize(a, ['streetcd', 'regiondistrictcd', 'settlementid'], -1, np.int32)
-    a = pd.concat([a,district])
+    a = pd.concat([a, district])
     a = a.join(regiondistricts[['regiondistrictnm']], on='regiondistrictcd', how="inner")
     a.loc[a["regiondistrictnm"].isnull(), "regiondistrictnm"] = "Не указан"
     if len(settlements) > 0:
@@ -66,7 +67,6 @@ def address(P_LSHET):
     a['dom_add'] = ''
 
     # Номер дома
-
     mask_houseno = a['houseno'] > 0
     mask_housepostfix = a['housepostfix'].notnull()
     a.loc[mask_houseno | mask_housepostfix, 'dom_add'] = a.loc[mask_houseno | mask_housepostfix, 'dom_add'] + 'д.'

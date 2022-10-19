@@ -9,7 +9,7 @@ connection_url_fdb = sa.engine.URL.create(
   username="SYSDBA",
   password="305",
   host="192.168.50.7/3305",
-  database=r"D:\Etalon\Russia\RyazanGKH\KVCRegion\ABONENT_3.FDB")
+  database=r"D:\Etalon\Russia\RyazanGKH\RGMEK\Abonent_3.FDB")
 
 #connection_url_fdb = sa.engine.URL.create("firebird",
                     # username='SYSDBA',
@@ -18,7 +18,7 @@ connection_url_fdb = sa.engine.URL.create(
                     # database=r'C:/Users/user/Desktop/API_DB/ABONENT_3.FDB')
 engine = sa.create_engine(connection_url_fdb)
 
-engin_MS = pyodbc.connect("Driver={ODBC Driver 17 for SQL Server};"
+engine_MS = pyodbc.connect("Driver={ODBC Driver 17 for SQL Server};"
                       "Server=192.168.51.11,1433;"
                       "Database=PaySystemAlpha;"
                       "trusted_connection=no;"

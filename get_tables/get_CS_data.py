@@ -5,7 +5,7 @@ from address import address
 
 
 def general_info_abonent_telephones(P_LSHET):
-    # Общая информация об абоненте, Контактные телефоны, Электронная почта
+    # Общая информация о ЛС, Контактные телефоны, Электронная почта
     df_general_inf = sqlalchemy.text(
         "select ABONENTS.LSHET, EXTORGACCOUNTS.EXTLSHET, ABONENTS.FIO, ABONENTS.NAME, ABONENTS.SECOND_NAME, "
         "ABONENTS.AGREEMENTPERSONALINFO , INFORMATIONOWNERS.OWNERNAME , ABONENTS.PCLOGIN,"
@@ -18,7 +18,7 @@ def general_info_abonent_telephones(P_LSHET):
     query = (engine.execute(df_general_inf)).all()
     df_general_info = pd.DataFrame(query)
     if df_general_info.empty:
-        return "Такого лицевого счета не существует"
+        return f"Лицевого счета {P_LSHET} не существует"
 
     df_general_info["abonentFIO"] = (
             df_general_info["fio"].apply(str) + ' ' + df_general_info["name"].apply(str) + ' '
@@ -64,11 +64,13 @@ def general_info_abonent_telephones(P_LSHET):
 def email(P_LSHET):
     # Электронная почта
     table_mail = pd.read_sql(
-        "select abonents.lshet, am.emailtypeid, am.email, am.commdate, am.ownertypeid, am.sourceid "
+        "select am.lshet, am.emailtypeid, am.email, am.commdate, am.ownertypeid, am.sourceid "
         "from abonentsmail am "
-        f"join abonents on abonents.lshet=am.lshet where abonents.lshet='{P_LSHET}'",
+        f"where am.lshet='{P_LSHET}'",
         engine)
     df_mail = pd.DataFrame(table_mail)
+    if df_mail.empty:
+        return f"По л/c {P_LSHET} запись об электронной почте отсутствует"
     df_mail["commdate"] = df_mail["commdate"].apply(lambda x: x.date())
     # columns_mail = ["emailtypeid", "email", "commdate", "ownertypeid", "sourceid"]
     # df_mail[columns_mail] = (df_mail[columns_mail]).apply(
@@ -77,15 +79,27 @@ def email(P_LSHET):
     return df_mail
 
 
+def accrual_and_payment_history(P_LSHET):
+    # История начислений и оплаты
+    table_a_p_history = pd.read_sql(
+        "select a.lshet,p.fyear, p.fmonth, p.peninachislsumma "
+        f"from penisumma p  join  abonents a using(lshet) where a.lshet='{P_LSHET}'", engine)
+    df_a_p_history = pd.DataFrame(table_a_p_history)
+    if df_a_p_history.empty:
+        return f"По л/c {P_LSHET} запись по истории начислений и оплаты отсутствует"
+    a_p_history = df_a_p_history.to_dict('records')
+    return a_p_history
+
+
 def citizens_and_benefits(P_LSHET):
     # Граждане и льготы
     df_citizen = sqlalchemy.text("select abonents.lshet,cityzens.cityzen_id, cityzens.ctzfio,cityzens.ctzname, "
                                  "cityzens.ctzparentname from cityzens "
-                                 f"LEFT join abonents on abonents.lshet=cityzens.lshet where abonents.lshet=:{P_LSHET}")
+                                 f"join abonents on abonents.lshet=cityzens.lshet where abonents.lshet={P_LSHET}")
     df_citizens_benefits = (engine.execute(df_citizen)).all()
     df_citizens_benefits = pd.DataFrame(df_citizens_benefits)
     if df_citizens_benefits.empty:
-        return "Записи о введенном ЛС не существует"
+        return f"Записи по ЛС {P_LSHET} не существует"
     df_citizens_benefits["sitizenFIO"] = (
             df_citizens_benefits["ctzfio"].apply(str) + ' ' + df_citizens_benefits["ctzname"].apply(str) + ' ' +
             df_citizens_benefits["ctzparentname"].apply(str))
@@ -119,11 +133,11 @@ def consumption(P_LSHET):
         "left join lcharslist on lcharslist.kod=lcharsabonentlist.kodlcharslist "
         "left join logicvalues on logicvalues.significance=lcharsabonentlist.significance "
         "and logicvalues.kod=lcharsabonentlist.kodlcharslist "
-        f"where lcharslist.kod in (53,52,68,69,70,99,1,37,30,44,21,12,53) and Lcharsabonentlist.lshet=:{P_LSHET}")
+        f"where lcharslist.kod in (53,52,68,69,70,99,1,37,30,44,21,12) and Lcharsabonentlist.lshet={P_LSHET}")
     df_consumption = (engine.execute(table_consumption)).all()
     df_consumption = pd.DataFrame(df_consumption)
     if df_consumption.empty:
-        return "По данному лицевому счету запись по потреблению отсутствует"
+        return f"По л/c {P_LSHET} запись о потреблении отсутствует"
     df_consumption = df_consumption.to_dict('records')
     return (df_consumption)
 
@@ -140,7 +154,7 @@ def lawsuits_claims(P_LSHET):  # посмотреть запрос
         "join documenttypes on documents.doctypeid=documenttypes.doctypeid "
         "join lawsuitsstatushistory on lawsuitsstatushistory.suitstatusdocumentcd= documents.documentcd "
         "join avaliablesuitstates on avaliablesuitstates.suitstatuscd=lawsuits.suitstatuscd where "
-        f"abonents.lshet=:{P_LSHET}")
+        f"abonents.lshet={P_LSHET}")
     df_info_p = (engine.execute(df_info_lawsuits)).all()
     df_info_p = pd.DataFrame(df_info_p)
     if df_info_p.empty:
@@ -155,6 +169,7 @@ def lawsuits_claims(P_LSHET):  # посмотреть запрос
 
 
 def house_characteristics(P_LSHET):
+    # Характеристики
     df_characters = sqlalchemy.text(
         "select abonents.lshet, ccharslist.name, ccharsabonentlist.significance,ccharsabonentlist.abonentcchardate "
         "from ccharsabonentlist "
@@ -164,12 +179,12 @@ def house_characteristics(P_LSHET):
     df_characters = (engine.execute(df_characters, PLSHET=P_LSHET)).all()
     df_characters = pd.DataFrame(df_characters)
     if df_characters.empty:
-        return "По данному лицевому счету запись о характеристиках отсутствует"
+        return f"По л/с {P_LSHET} запись о характеристиках отсутствует"
     df_characters["abonentcchardate"] = df_characters["abonentcchardate"].apply(lambda x: x.date())
     # df_characters["characters_info"] = df_characters["name"].apply(str) + ': ' + df_characters[
     # "significance"].apply(str)
     df_charactr = df_characters.reindex(columns=["lshet", "characters_info", "abonentcchardate"])
-    df_charactr = df_characters.to_dict('records')
+    df_charactr = df_charactr.to_dict('records')
     return df_charactr
 
 
@@ -185,7 +200,7 @@ def additional_house_ch(P_LSHET):
     df_additional_ch = (engine.execute(df_additional_ch)).all()
     df_additional_ch = pd.DataFrame(df_additional_ch)
     if df_additional_ch.empty:
-        return "По данному лицевому счету запись о дополнительных характеристиках отсутствует"
+        return f"По л/с {P_LSHET} запись о дополнительных характеристиках отсутствует"
     df_additional_ch["housecchardate"] = df_additional_ch["housecchardate"].apply(lambda x: x.date())
     df_additional_ch["additional_ch_info"] = df_additional_ch["name"].apply(str) + ': ' + df_additional_ch[
         "significance"].apply(str)
@@ -195,6 +210,7 @@ def additional_house_ch(P_LSHET):
 
 
 def consumption_parameters(P_LSHET):
+    # Параметры потребления
     cons_param_table = sqlalchemy.text(
         "select abonents.lshet, houses.housecd, lcharslist.name, "
         "logicvalues.logicsignificance,lcharshouselist.houselchardate "
@@ -207,4 +223,6 @@ def consumption_parameters(P_LSHET):
         f"where lcharslist.kod in (1,37,99,10009,12,21,44,32,62990,22,30,127,126,68,69,70) and abonents.lshet=:{P_LSHET}")
     df_cons_param = (engine.execute(cons_param_table)).all()
     df_cons_param = pd.DataFrame(df_cons_param)
-
+    if df_cons_param.empty:
+        return f"По л/с {P_LSHET} запись о параметрах потребления отсутствует"
+    return df_cons_param
