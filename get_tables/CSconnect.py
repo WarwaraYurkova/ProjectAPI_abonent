@@ -24,8 +24,6 @@ engine_MS = pyodbc.connect("Driver={ODBC Driver 17 for SQL Server};"
                       "trusted_connection=no;"
                       "uid=UserAlpha;"
                       "pwd=ALSUtCF%utnWJk6Oa~RI?#q0v!;")
-#engin_MS = pyodbc.connect(connection_url_ms)
-#engine_MS = sa.create_engine(connection_url_ms)
 
 def Connect_FDB():
     try:

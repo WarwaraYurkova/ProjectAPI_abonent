@@ -128,18 +128,38 @@ def citizens_and_benefits(P_LSHET):
 def consumption(P_LSHET):
     # Потребление
     table_consumption = sqlalchemy.text(
-        "select  Lcharsabonentlist.lshet, lcharslist.name, logicvalues.logicsignificance "
+        "select Lcharsabonentlist.lshet, lcharslist.name, logicvalues.logicsignificance "
         "from lcharsabonentlist "
         "left join lcharslist on lcharslist.kod=lcharsabonentlist.kodlcharslist "
         "left join logicvalues on logicvalues.significance=lcharsabonentlist.significance "
         "and logicvalues.kod=lcharsabonentlist.kodlcharslist "
-        f"where lcharslist.kod in (53,52,68,69,70,99,1,37,30,44,21,12) and Lcharsabonentlist.lshet={P_LSHET}")
+        f"where lcharslist.kod in (53,52,34,6,5,2,30,22,21,12,11,96,10009) and Lcharsabonentlist.lshet={P_LSHET}")
     df_consumption = (engine.execute(table_consumption)).all()
     df_consumption = pd.DataFrame(df_consumption)
     if df_consumption.empty:
-        return f"По л/c {P_LSHET} запись о потреблении отсутствует"
+        return f"По л/c {P_LSHET} запись об оборудовании отсутствует"
     df_consumption = df_consumption.to_dict('records')
     return (df_consumption)
+
+
+def equipment(P_LSHET):
+    # Оборудование
+    table_equipment = pd.read_sql(
+        "select (cntr.name||' (модель '||cntr.model||', '||' код '|| cntr.kod||')'), rscntr.name, "
+        "parentequipment.serialnumber,rscntr.setupdate, rscntr.lastpprdate, rscntr.dateppr, "
+        "cntr.digitcount,  periodppr.name, eqsl.statusvalue,/*equipmentadditionalchars,*/ "
+        "counterindication.previousindication,/*abonentadditionalchars,*/ counterindication.indicationvalue "
+        "/*equipmentadditionalchars,*/"
+        "/*equipmentadditionalchars,*/ "
+        "from counterstypes cntr "
+        "join resourcecounters rscntr on cntr.kod=rscntr.kodcounterstypes "
+        "join eqstatuses eqstt on eqstt.equipmentid=cntr.equipmenttypeid "
+        "join eqstatuslist eqsl on eqstt.statuscd=eqsl.statuscd "
+        "join parentequipment on parentequipment.equipmentid=eqstt.equipmentid "
+        "join periodppr on periodppr.kod=rscntr.kodperiodppr "
+        "join equipmentadditionalchars eqadc on eqadc.equipmentid=eqstt.equipmentid "
+        "join additionalchars adc on adc.additionalcharcd=eqadc.additionalcharcd "
+        "join counterindication on counterindication.kod=rscntr.kod")
 
 
 def lawsuits_claims(P_LSHET):  # посмотреть запрос
