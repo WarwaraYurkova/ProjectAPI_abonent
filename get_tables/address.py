@@ -12,24 +12,16 @@ def normalize(df, fields_list, default, newtype):
 
 def address(P_LSHET):
     # Общая информация об абоненте, Контактные телефоны, Электронная почта
-    abonents = sqlalchemy.text(f"select * from abonents where lshet={P_LSHET}")
-    houses = sqlalchemy.text(
-        f"select * from houses where housecd in (select housecd from abonents where lshet={P_LSHET})")
-    street = sqlalchemy.text(
+    abonents = pd.read_sql(f"select * from abonents where lshet={P_LSHET}",engine)
+    houses = pd.read_sql(
+        f"select * from houses where housecd in (select housecd from abonents where lshet={P_LSHET})", engine)
+    street = pd.read_sql(
         f"select * from street where streetcd in (select streetcd from houses where housecd "
-        f"in (select housecd from abonents where lshet={P_LSHET}))")
-    punkt = sqlalchemy.text("select * from punkt")
-    district = sqlalchemy.text("select * from district")
-    regiondistricts = sqlalchemy.text("select * from regiondistricts")
-    settlements = sqlalchemy.text("select * from settlements")
-
-    abonents = (engine.execute(abonents)).all()
-    street = (engine.execute(street)).all()
-    houses = (engine.execute(houses)).all()
-    punkt = (engine.execute(punkt)).all()
-    district = (engine.execute(district)).all()
-    regiondistricts = (engine.execute(regiondistricts)).all()
-    settlements = (engine.execute(settlements)).all()
+        f"in (select housecd from abonents where lshet={P_LSHET}))", engine)
+    punkt = pd.read_sql("select * from punkt",engine)
+    district = pd.read_sql("select * from district", engine)
+    regiondistricts = pd.read_sql("select * from regiondistricts", engine)
+    settlements = pd.read_sql("select * from settlements", engine)
 
     abonents = pd.DataFrame(abonents)
     street = pd.DataFrame(street)

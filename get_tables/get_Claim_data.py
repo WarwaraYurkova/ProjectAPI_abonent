@@ -2,7 +2,7 @@ from CSconnect import engine_MS
 import pandas as pd
 
 
-def nofications(P_LSHET):
+def notifications(P_LSHET):
     # Уведомления
     table_nofications = pd.read_sql("select * from (select distinct LawCases.Account, LawNoticeTypes.Name as "
                                     "NoticeTypeName, "
