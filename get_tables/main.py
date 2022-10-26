@@ -4,6 +4,11 @@ from get_CS_data import general_info_abonent_telephones, email, accrual_and_paym
     citizens_and_benefits, additional_house_ch, \
     house_characteristics, consumption,consumption_parameters, lawsuits_claims, equipment
 from get_Claim_data import notifications, stages_work, claim_work
+from post_CS_data import post_general_info_abonent, post_telephones_abonent, post_email
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", port=8000, host="127.0.0.1", reload=True)
 
 app = FastAPI()
 # Чтение данных из РС
@@ -99,14 +104,41 @@ async def get_claim_work(P_LSHET: str):
         return "По данному лицевому счету запись отсутствует"
     return INFO
 
-if __name__ == "__main__":
-    uvicorn.run("main:app", port=8000, host="127.0.0.1", reload=True)
 
 # Запись
-@app.post("/getInformation")
-async def getInformation(info : Request):
-    req_info = await info.json()
+@app.post("/GENERAL_INFO_LS/")
+async def post_general_info(DOCCD: int,
+                            USERCD: int,
+                            CHANGE_DATA: str,
+                            AGREEMENTPERSONALINFO: int,
+                            LSHET: str,
+                            CONSENT_TO_MAIL: int):
+    post_general_info_abonent(DOCCD,USERCD,CHANGE_DATA,AGREEMENTPERSONALINFO,LSHET,CONSENT_TO_MAIL)
+
+@app.post("/PHONES_LS/")
+async def post_telephones( PHONETYPE: int,
+                                OWNERTYPEID: int,
+                                LSHET: str,
+                                PHONENUMBER: str,
+                                SOURCEID: int,
+                                USERCD: int,
+                                CHANGE_DATA:str):
+    post_telephones_abonent(LSHET, PHONETYPE, PHONENUMBER, SOURCEID, OWNERTYPEID,USERCD,CHANGE_DATA)
     return {
-        "status" : "SUCCESS",
-        "data" : req_info
+        "JSON Load ": {"phonetype": PHONETYPE,"phonenumber": PHONENUMBER, "OWNERTYPEID": OWNERTYPEID, "LSHET": LSHET,
+               "COMMDATE": CHANGE_DATA,"SOURCEID": SOURCEID, "USERCD":USERCD,"CHANGE_DATA":CHANGE_DATA,"TS":CHANGE_DATA},
     }
+@app.post("/EMAIL_LS/")
+async def post_emails(LSHET: str,
+                      USERCD: int,
+                      EMAIL: str,
+                      EMAILTYPEID:int,
+                      OWNERTYPEID: int,
+                      SOURCEID: int,
+                      CHANGE_DATA: str):
+    post_email(LSHET, EMAILTYPEID, EMAIL, CHANGE_DATA, OWNERTYPEID, SOURCEID, USERCD)
+    return {
+        "JSON Load ": {"LSHET": LSHET,"USERCD": USERCD, "EMAIL": EMAIL, "EMAILTYPEID": EMAILTYPEID,
+               "OWNERTYPEID": OWNERTYPEID,"SOURCEID": SOURCEID, "CHANGE_DATA":CHANGE_DATA,"TS":CHANGE_DATA},
+    }
+

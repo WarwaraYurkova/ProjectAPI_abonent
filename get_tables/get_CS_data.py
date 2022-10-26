@@ -1,49 +1,9 @@
 from CSconnect import engine
 import pandas as pd
 from address import address
-
+import sqlalchemy as sa
 
 def general_info_abonent_telephones(P_LSHET):
-    # Общая информация о ЛС, Контактные телефоны, Электронная почта
-    df_general_inf = pd.read_sql(
-        "select dop_t1.*,abonents.note,ABONENTS.FIO, ABONENTS.NAME, ABONENTS.SECOND_NAME, "
-        "ABONENTS.AGREEMENTPERSONALINFO , INFORMATIONOWNERS.OWNERNAME , ABONENTS.PCLOGIN, "
-        "dop_t2.documentscds, ABONENTSCONTRACT.STARTDATE "
-        "from (select lshet,list(dop_t.extlshets) as lshets from (select ABONENTS.LSHET, "
-        "(EXTORGACCOUNTS.EXTLSHET||' ('||extorgspr.extorgnm||')') as extlshets "
-        "from abonents "
-        "LEFT JOIN EXTORGACCOUNTS ON ABONENTS.LSHET=EXTORGACCOUNTS.LSHET "
-        f"join extorgspr on extorgspr.extorgcd=extorgaccounts.extorgcd where abonents.lshet={P_LSHET}) "
-        "as dop_t group by lshet)as dop_t1 "
-        "join (select abonents.lshet,list(ABONENTSCONTRACT.DOCUMENTCD) as documentscds "
-        "from abonents "
-        f"join ABONENTSCONTRACT ON ABONENTS.LSHET=ABONENTSCONTRACT.LSHET where abonents.lshet={P_LSHET}  group by lshet) "
-        "as dop_t2 on dop_t2.lshet=dop_t1.lshet "
-        "join abonents on dop_t1.lshet=abonents.lshet "
-        "LEFT JOIN INFORMATIONOWNERS ON ABONENTS.OWNERID = INFORMATIONOWNERS.OWNERID "
-        "join ABONENTSCONTRACT ON ABONENTS.LSHET=ABONENTSCONTRACT.LSHET", engine)
-    df_general_info = pd.DataFrame(df_general_inf)
-
-    if df_general_info.empty:
-        return f"Лицевого счета {P_LSHET} не существует"
-
-    df_general_info["abonentFIO"] = (
-            df_general_info["fio"].apply(str) + ' ' + df_general_info["name"].apply(str) + ' '
-            + df_general_info["second_name"].apply(str))
-    df_general_info["note"] = df_general_info["note"].apply(str)
-    df_general_info["documentscds"] = df_general_info["documentscds"].fillna("Не указан", inplace=True)
-    df_general_info["pclogin"] = \
-        df_general_info["pclogin"].apply(pd.to_numeric, errors='coerce').fillna("", inplace=True)
-    df_general_info["startdate"] = df_general_info["startdate"].apply(pd.to_datetime, errors='coerce').fillna("",
-                                                                                                              inplace=True)
-
-    a = address(P_LSHET)
-    a = pd.DataFrame(a)
-    a = a.set_index('lshet')
-    df_general_infos = df_general_info.merge(a[['address']], on='lshet')
-    #df_general_infos = df_general_infos.reindex(columns=["lshet", "extlshets", "abonentFIO", "address",
-                                                         #"agreementpersonalinfo", "ownername", "pclogin", "documentcd",
-                                                         #"startdate"])
 
     # Контактные телефоны
     df_telephones = pd.read_sql(
@@ -56,20 +16,26 @@ def general_info_abonent_telephones(P_LSHET):
     df_telephon["commdate"] = df_telephon["commdate"].apply(lambda x: x.date())
     numeric_telephones = ["phonetypeid", "phonenumber"]
     df_telephon[numeric_telephones] = df_telephon[numeric_telephones].apply(pd.to_numeric, errors='coerce')
-    info_telephon = df_general_infos.merge(df_telephon, how='left', on='lshet')
-    #abonents_telephone_mail = info_telephon.to_dict('records')
-    info_telephone=info_telephon.to_dict('records')
+    df_dop = pd.read_sql("select ab.lshet, addch.additionalcharname  "
+                         "from abonentadditionalchars ab "
+                         f"join additionalchars addch on addch.additionalcharcd=ab.additionalcharcd where ab.significance=0 and ab.lshet={P_LSHET}",
+                         engine)
+    df_dop = pd.DataFrame(df_dop)
+    df_dop["additionalcharname"]=df_dop["additionalcharname"].apply(str)
+    info_telephon = df_telephon.merge(df_dop, how='left', on='lshet')
+    info_telephone = info_telephon.to_dict('records')
     return info_telephone
+
 
 def email(P_LSHET):
     # Электронная почта
     table_mail = pd.read_sql(
         "select am.lshet, emt.description as mailtype, am.email, am.commdate, owt.description as ownertype, ins.description as sourcetype "
         "from abonentsmail am "
-        "join emailtypes emt on emt.emailtypecd=am.emailtypeid "
-        "join ownertypes owt on owt.id=am.ownertypeid "
-        "join infosources ins on ins.id=am.sourceid  "
-        f"where am.lshet='{P_LSHET}'", engine)
+        "left join emailtypes emt on emt.emailtypecd=am.emailtypeid "
+        "left join ownertypes owt on owt.id=am.ownertypeid "
+        "left join infosources ins on ins.id=am.sourceid  "
+        f"where am.lshet={P_LSHET}", engine)
     df_mail = pd.DataFrame(table_mail)
     if df_mail.empty:
         return f"По л/c {P_LSHET} запись об электронной почте отсутствует"
@@ -121,7 +87,7 @@ def citizens_and_benefits(P_LSHET):
         return "По данному лицевому счету запись о гражданах и льготах отсутствует"
     df_citizens_benefit = df_citizens_benefit.merge(df_citizens_statuses, on="lshet")
     df_citizens_benefit.drop(["cityzen_id"], inplace=True, axis=1)
-    df_citizens_benefit = df_citizens_benefit.tail(1)
+    #df_citizens_benefit = df_citizens_benefit.tail(1)
     df_citizens_benefit = df_citizens_benefit.to_dict('records')
     return (df_citizens_benefit)
 
@@ -146,12 +112,10 @@ def consumption(P_LSHET):
 def equipment(P_LSHET):
     # Оборудование
     table_equipment = pd.read_sql(
-        "select (cntr.name||' (модель '||cntr.model||', '||' код '|| cntr.kod||')'), rscntr.name, "
+        "select abadd.lshet,(cntr.name||' (модель '||cntr.model||', '||' код '|| cntr.kod||')'), rscntr.name, "
         "parentequipment.serialnumber,rscntr.setupdate, rscntr.lastpprdate, rscntr.dateppr, "
-        "cntr.digitcount,  periodppr.name, eqsl.statusvalue,/*equipmentadditionalchars,*/ "
-        "counterindication.previousindication,/*abonentadditionalchars,*/ counterindication.indicationvalue "
-        "/*equipmentadditionalchars,*/"
-        "/*equipmentadditionalchars,*/ "
+        "cntr.digitcount,  periodppr.name, eqsl.statusvalue,(adc.additionalcharname||'('||adv.avaliablevalue||')') as equip_param , "
+"counterindication.previousindication,counterindication.indicationvalue "
         "from counterstypes cntr "
         "join resourcecounters rscntr on cntr.kod=rscntr.kodcounterstypes "
         "join eqstatuses eqstt on eqstt.equipmentid=cntr.equipmenttypeid "
@@ -160,12 +124,14 @@ def equipment(P_LSHET):
         "join periodppr on periodppr.kod=rscntr.kodperiodppr "
         "join equipmentadditionalchars eqadc on eqadc.equipmentid=eqstt.equipmentid "
         "join additionalchars adc on adc.additionalcharcd=eqadc.additionalcharcd "
-        "join counterindication on counterindication.kod=rscntr.kod", engine)
+        "join counterindication on counterindication.kod=rscntr.kod "
+        "left join additionalcharsvalues adv on adv.additionalcharcd=eqadc.additionalcharcd "
+        f"left join abonentadditionalchars abadd on abadd.additionalcharcd=adc.additionalcharcd where abadd.lshet={P_LSHET}", engine)
     df_equipment = pd.DataFrame(table_equipment)
     if df_equipment.empty:
         return f"По л/c {P_LSHET} запись об оборудовании отсутствует"
-    df_consumption = df_equipment.to_dict('records')
-    return (df_consumption)
+    df_equipment = df_equipment.to_dict('records')
+    return (df_equipment)
 
 
 def lawsuits_claims(P_LSHET):
